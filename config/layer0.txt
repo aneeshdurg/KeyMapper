@@ -1,2 +1,13 @@
+# Lines starting with '#' are comments
+# The format of this file is `ORIGINAL_KEY SPC* MAPPED_KEY`
+#   where SPC is a literal space (' ')
+#   see ../keys_xlist.h and ../mouse_xlist.h for the names of keys/mouse actions
+
+# layer_1 and layer_2 tell KeyMapper to swtich to layer1 or layer2. If both
+# layers are activated simulatenously, then layer3 is activated.
+
 MODIFIERKEY_RIGHT_SHIFT layer_1
-MODIFIERKEY_RIGHT_CTRL layer_2
+MODIFIERKEY_RIGHT_CTRL  layer_2
+
+# Any keys not defined in a layer will fall through to the layer below. Keys
+# that fall past layer0 will be sent directly to the host

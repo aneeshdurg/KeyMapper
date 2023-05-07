@@ -1,6 +1,5 @@
-// Simple USB Keyboard Forwarder
-//
-// This example is in the public domain
+/// KeyMapper - add layers and reprogrammability to any keyboard!
+/// To compile - set board to Teensy 4.1 and set USB Type to "Serial + Keyboard + Mouse + Joystick"
 
 #include "USBHost_t36.h"
 
@@ -14,10 +13,7 @@ USBHIDParser hid2(myusb);
 
 #ifdef KEYBOARD_INTERFACE
 uint8_t keyboard_last_leds = 0;
-uint8_t keyboard_modifiers = 0;  // try to keep a reasonable value
-#elif !defined(SHOW_KEYBOARD_DATA)
-#Warning: "USB type does not have Serial, so turning on SHOW_KEYBOARD_DATA"
-#define SHOW_KEYBOARD_DATA
+uint8_t keyboard_modifiers = 0;
 #endif
 
 #include <SD.h>
@@ -26,13 +22,13 @@ uint8_t keyboard_modifiers = 0;  // try to keep a reasonable value
 #define X(mouseaction)  + 1
 const size_t NUM_MOUSE_ACTIONS = 0
 #include "./mouse_xlist.h"
-;
+                                 ;
 #undef X
 
 #define X(keycode)  + 1
 const size_t NUM_KEYS = 0
 #include "./keys_xlist.h"
-;
+                        ;
 #undef X
 
 File myFile;
@@ -117,7 +113,7 @@ bool IsMouseAction(uint32_t code) {
 
 char KeyCodeToLinearID(uint32_t keycode) {
   const size_t initial_value = __COUNTER__;
-  switch(keycode) {
+  switch (keycode) {
 #define X(keyname) case keyname: return __COUNTER__ - initial_value - 1;
 #include "./keys_xlist.h"
 #undef X
@@ -139,7 +135,7 @@ uint32_t StringToKeyCode(String s) {
 }
 
 uint32_t ModToKeyCode(uint8_t keymod) {
-  switch(keymod) {
+  switch (keymod) {
     case 0x01: return MODIFIERKEY_LEFT_CTRL   ;
     case 0x02: return MODIFIERKEY_LEFT_SHIFT  ;
     case 0x04: return MODIFIERKEY_LEFT_ALT    ;
@@ -154,7 +150,7 @@ uint32_t ModToKeyCode(uint8_t keymod) {
 }
 
 uint8_t KeyCodeToMod(uint32_t keymod) {
-  switch(keymod) {
+  switch (keymod) {
     case MODIFIERKEY_LEFT_CTRL   : return 0x01;
     case MODIFIERKEY_LEFT_SHIFT  : return 0x02;
     case MODIFIERKEY_LEFT_ALT    : return 0x04;
@@ -169,7 +165,7 @@ uint8_t KeyCodeToMod(uint32_t keymod) {
 }
 
 bool IsMod(uint32_t keycode) {
-  switch(keycode) {
+  switch (keycode) {
     case MODIFIERKEY_LEFT_CTRL   :
     case MODIFIERKEY_LEFT_SHIFT  :
     case MODIFIERKEY_LEFT_ALT    :
@@ -183,6 +179,29 @@ bool IsMod(uint32_t keycode) {
 
   return false;
 }
+
+bool debug_enabled = false;
+void initializeSerial() {
+  // Open serial communications and wait for port to open:
+  Serial.begin(9600);
+  while (!Serial) {
+    ; // wait for serial port to connect.
+  }
+}
+
+void write(const char* msg) {
+  if (debug_enabled) {
+    Serial.write(msg);
+  }
+}
+
+void log(const char* msg) {
+  if (debug_enabled) {
+    Serial.println(msg);
+  }
+}
+
+char LOG_MSG[100];
 
 void setup()
 {
@@ -199,34 +218,43 @@ void setup()
     MOUSE_STATE[i] = false;
   }
 
-  // Open serial communications and wait for port to open:
-  // Serial.begin(9600);
-  //  while (!Serial) {
-  //   ; // wait for serial port to connect.
-  // }
-
-  // Serial.print("Initializing SD card...");
+  log("Initializing SD card...");
 
   if (!SD.begin(chipSelect)) {
-    // Serial.println("initialization failed!");
+    log("initialization failed!");
     return;
   }
-  // Serial.println("initialization done.");
+  log("initialization done.");
 
-  for(size_t layer = 0; layer < 4; layer++) {
+  for (size_t layer = 0; layer < 4; layer++) {
     String filename = String("layer") + String(layer) + ".txt";
     // re-open the file for reading:
     myFile = SD.open(filename.c_str());
     if (myFile) {
-      // Serial.write("opening ");
-      // Serial.println(filename.c_str());
+      write("opening ");
+      log(filename.c_str());
 
       // read from the file until there's nothing else in it:
       while (myFile.available()) {
         String config_line = myFile.readStringUntil('\n');
+        // ignore comment and empty lines
+        if (config_line.length() == 0 || config_line[0] == '#') {
+          continue;
+        }
 
-        // Serial.write(":");
-        // Serial.println(config_line.c_str());
+        if (config_line == "DEBUG_ENABLE") {
+          if (!debug_enabled) {
+            initializeSerial();
+          }
+          debug_enabled = true;
+          log("Enabled debugging!");
+          continue;
+        }
+
+        if (debug_enabled) {
+          write(":");
+          log(config_line.c_str());
+        }
         int split = config_line.indexOf(' ');
         if (split < 0) {
           continue;
@@ -236,7 +264,12 @@ void setup()
         uint32_t src_key = StringToKeyCode(src);
         char src_idx = KeyCodeToLinearID(src_key);
 
-        String dst = config_line.substring(split + 1);
+        int dst_start = split + 1;
+        while (config_line[dst_start] == ' ') {
+          dst_start++;
+        }
+
+        String dst = config_line.substring(dst_start);
         if (dst == "layer_1") {
           layer1_trigger[src_idx] = true;
         } else if (dst == "layer_2") {
@@ -258,8 +291,8 @@ void setup()
       myFile.close();
     } else {
       // if the file didn't open, print an error:
-      // Serial.write("error opening ");
-      // Serial.println(filename.c_str());
+      write("error opening ");
+      log(filename.c_str());
     }
   }
 
@@ -333,6 +366,11 @@ uint32_t MapKeyThroughLayers(uint32_t key) {
 
 void OnRawPress(uint8_t keycode) {
 #ifdef KEYBOARD_INTERFACE
+  if (debug_enabled) {
+    sprintf(LOG_MSG, "PRESS %d", keycode);
+    log(LOG_MSG);
+  }
+
   if (keyboard_leds != keyboard_last_leds) {
     keyboard_last_leds = keyboard_leds;
     keyboard1.LEDS(keyboard_leds);
@@ -350,8 +388,10 @@ void OnRawPress(uint8_t keycode) {
   size_t key_idx = KeyCodeToLinearID(key);
   if (layer1_trigger[key_idx]) {
     current_layer |= 0x01;
+    releaseAllNormal();
   } else if (layer2_trigger[key_idx]) {
     current_layer |= 0x02;
+    releaseAllNormal();
   } else {
     key = MapKeyThroughLayers(key);
     if (IsMouseAction(key)) {
@@ -367,12 +407,32 @@ void OnRawPress(uint8_t keycode) {
   }
 #endif
 }
+
+// release all non-modifier keys
+void releaseAllNormal() {
+  Keyboard.set_key1(0);
+  Keyboard.set_key2(0);
+  Keyboard.set_key3(0);
+  Keyboard.set_key4(0);
+  Keyboard.set_key5(0);
+  Keyboard.set_key6(0);
+  Keyboard.send_now();
+
+  for (size_t i = 0; i < NUM_MOUSE_ACTIONS; i++) {
+    MOUSE_STATE[i] = false;
+  }
+}
+
+
 void OnRawRelease(uint8_t keycode) {
 #ifdef KEYBOARD_INTERFACE
+  if (debug_enabled) {
+    sprintf(LOG_MSG, "RELEASE %d", keycode);
+    log(LOG_MSG);
+  }
+
   uint32_t key = 0;
   if (keycode >= 103 && keycode < 111) {
-    // one of the modifier keys was pressed, so lets turn it
-    // on global..
     uint8_t keybit = 1 << (keycode - 103);
     key = ModToKeyCode(keybit);
   } else {
@@ -382,8 +442,10 @@ void OnRawRelease(uint8_t keycode) {
   size_t key_idx = KeyCodeToLinearID(key);
   if (layer1_trigger[key_idx]) {
     current_layer &= ~0x01;
+    releaseAllNormal();
   } else if (layer2_trigger[key_idx]) {
     current_layer &= ~0x02;
+    releaseAllNormal();
   } else {
     key = MapKeyThroughLayers(key);
     if (IsMouseAction(key)) {
