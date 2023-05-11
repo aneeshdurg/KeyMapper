@@ -6,6 +6,9 @@ input, but does not support forwarding mouse input. It requires an SD card with
 a set of config files to be present on the teensy. A sample config file is
 present in the config/ directory.
 
+See [this blog post](https://aneeshdurg.me/posts/2023-05-10-keymapper/) for more
+details on the project.
+
 # TODOs
 
 + Tap/hold keys
