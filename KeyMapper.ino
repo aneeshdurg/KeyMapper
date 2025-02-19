@@ -5,6 +5,8 @@
 
 #include "./mouse_defs.h"
 
+// #define MOUSEENABLED
+
 USBHost myusb;
 USBHub hub1(myusb);
 KeyboardController keyboard1(myusb);
@@ -68,7 +70,9 @@ void PressMouseAction(uint32_t mouse_action) {
   }
 
   if (set_clicked) {
+#ifdef MOUSEENABLED
     Mouse.set_buttons(btn1_click, btn3_click, btn2_click);
+#endif
   }
 }
 
@@ -97,7 +101,9 @@ void ReleaseMouseAction(uint32_t mouse_action) {
   }
 
   if (set_clicked) {
+#ifdef MOUSEENABLED
     Mouse.set_buttons(btn1_click, btn3_click, btn2_click);
+#endif
   }
 }
 
@@ -466,6 +472,8 @@ size_t last_movement = 0;
 size_t last_scroll = 0;
 #define delay_motion_time 5
 #define delay_scroll_time 100
+
+#ifdef MOUSEENABLED
 void ProcessMouseKeys() {
   int vert_motion = 0;
   if (MOUSE_STATE[0]) {
@@ -527,3 +535,6 @@ void ProcessMouseKeys() {
     last_scroll = current_time;
   }
 }
+#else
+void ProcessMouseKeys() {}
+#endif
