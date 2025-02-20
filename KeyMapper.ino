@@ -70,7 +70,7 @@ void PressMouseAction(uint32_t mouse_action) {
   }
 
   if (set_clicked) {
-#ifdef MOUSEENABLED
+#ifdef MOUSE_INTERFACE
     Mouse.set_buttons(btn1_click, btn3_click, btn2_click);
 #endif
   }
@@ -101,7 +101,7 @@ void ReleaseMouseAction(uint32_t mouse_action) {
   }
 
   if (set_clicked) {
-#ifdef MOUSEENABLED
+#ifdef MOUSE_INTERFACE
     Mouse.set_buttons(btn1_click, btn3_click, btn2_click);
 #endif
   }
@@ -473,7 +473,7 @@ size_t last_scroll = 0;
 #define delay_motion_time 5
 #define delay_scroll_time 100
 
-#ifdef MOUSEENABLED
+#ifdef MOUSE_INTERFACE
 void ProcessMouseKeys() {
   int vert_motion = 0;
   if (MOUSE_STATE[0]) {
